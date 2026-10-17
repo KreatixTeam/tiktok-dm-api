@@ -1,0 +1,23 @@
+services:
+  api:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8000:8000"
+    environment:
+      TTDM_DATA: /data
+      TTDM_WEBHOOK_URL: ${TTDM_WEBHOOK_URL:-}
+    volumes:
+      - ttdm-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,noexec,nosuid
+    mem_limit: 300000000
+    memswap_limit: 300000000
+    pids_limit: 32
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    stop_grace_period: 30s
+
+volumes:
+  ttdm-data:

@@ -1,0 +1,46 @@
+[build-system]
+requires = ["setuptools>=80,<81"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "tiktok-dm-api"
+version = "0.1.0"
+description = "Unofficial, browserless, self-hosted TikTok DM bridge"
+requires-python = ">=3.12"
+license = "MIT"
+dependencies = [
+  "fastapi==0.135.4",
+  "uvicorn==0.42.0",
+  "websockets==15.0.1",
+  "httpx==0.28.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest==9.0.3", "ruff==0.12.12", "mypy==1.17.1", "pip-audit==2.9.0"]
+
+[project.scripts]
+ttdm = "tiktok_dm_api.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+"tiktok_dm_api._vendor" = ["LICENSE"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+exclude = ["src/tiktok_dm_api/_vendor"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "ASYNC"]
+ignore = ["E501"]
+
+[tool.mypy]
+python_version = "3.12"
+check_untyped_defs = true
+exclude = "_vendor"
+follow_imports = "silent"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

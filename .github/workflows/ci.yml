@@ -1,0 +1,44 @@
+name: Checks
+on: [push, pull_request]
+permissions:
+  contents: read
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.lock
+      - run: pip install -r requirements.lock -e '.[dev]' -c requirements.lock
+      - run: ruff check src tests examples scripts
+      - run: ruff format --check src tests examples scripts
+      - run: mypy src/tiktok_dm_api
+      - run: pytest -q
+      - run: pip-audit -r requirements.lock --progress-spinner off
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose config --quiet
+      - run: docker build -t ttdm-ci .
+      - name: Run the real image without contacting TikTok
+        run: |
+          docker run -d --name ttdm-smoke --memory=300000000 --memory-swap=300000000 \
+            --read-only --tmpfs /tmp:rw,nosuid,noexec,size=16m \
+            --cap-drop ALL --security-opt no-new-privileges:true \
+            -v "$PWD/tests/container_smoke.py:/smoke.py:ro" \
+            -p 127.0.0.1:18000:8000 --entrypoint python ttdm-ci /smoke.py
+          for i in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:18000/healthz; then break; fi
+            sleep 1
+          done
+          test "$(curl --silent -o /dev/null -w '%{http_code}' http://127.0.0.1:18000/v1/status)" = 401
+          curl --fail --silent http://127.0.0.1:18000/v1/status \
+            -H "Authorization: Bearer synthetic-ci-api-token-not-a-secret-0000"
+          test "$(docker inspect -f '{{.Config.User}}' ttdm-smoke)" = "10001:10001"
+          docker stats --no-stream --format '{{.MemUsage}}' ttdm-smoke
+      - if: always()
+        run: docker logs ttdm-smoke; docker rm -f ttdm-smoke || true

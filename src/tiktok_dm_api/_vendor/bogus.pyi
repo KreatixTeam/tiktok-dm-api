@@ -1,0 +1,3 @@
+class Signer:
+    @staticmethod
+    def sign_ws(stub_hex: str, n: int = 1, random_byte: int | None = None) -> str: ...
