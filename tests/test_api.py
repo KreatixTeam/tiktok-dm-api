@@ -1,7 +1,14 @@
+import importlib.util
+import json
+import os
+import time
+from pathlib import Path
+
 from conftest import CONVERSATION, TOKEN, message_wire
 from fastapi.testclient import TestClient
 
 from tiktok_dm_api.app import create_app
+from tiktok_dm_api.runtime import webhook_signature
 
 
 def client(runtime):
@@ -82,3 +89,34 @@ def test_events_and_dead_letter_retry(runtime):
     with runtime.store.db:
         runtime.store.db.execute("UPDATE events SET status='dead'")
     assert c.post(f"/v1/events/{event['id']}/retry", headers=auth()).status_code == 200
+
+
+def test_receiver_example_verifies_signature_and_keeps_inbox_private(tmp_path, monkeypatch):
+    secret = "synthetic-example-webhook-secret-00000"
+    path = tmp_path / "inbox.sqlite3"
+    monkeypatch.setenv("TTDM_WEBHOOK_SECRET", secret)
+    monkeypatch.setenv("WEBHOOK_STATE", str(path))
+    spec = importlib.util.spec_from_file_location(
+        "receiver_example", Path(__file__).parents[1] / "examples/webhook.py"
+    )
+    module = importlib.util.module_from_spec(spec)
+    old_mask = os.umask(0o077)
+    try:
+        spec.loader.exec_module(module)
+        c = TestClient(module.app)
+        body = json.dumps(
+            {"id": "synthetic-event", "type": "message.received", "data": {}}
+        ).encode()
+        headers = {
+            "X-TTDM-Event-ID": "synthetic-event",
+            "X-TTDM-Signature": webhook_signature(secret, body, int(time.time())),
+        }
+        assert c.post("/webhook", content=body, headers=headers).status_code == 200
+        assert c.post("/webhook", content=body, headers=headers).status_code == 200
+        assert module.db.execute("SELECT count(*) FROM received").fetchone()[0] == 1
+        assert path.stat().st_mode & 0o777 == 0o600
+        headers["X-TTDM-Signature"] = webhook_signature(secret, body, 1)
+        assert c.post("/webhook", content=body, headers=headers).status_code == 401
+    finally:
+        module.db.close()
+        os.umask(old_mask)

@@ -11,7 +11,10 @@ from fastapi import FastAPI, HTTPException, Request
 
 app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
 secret = os.environ["TTDM_WEBHOOK_SECRET"].encode()
-db = sqlite3.connect(os.getenv("WEBHOOK_STATE", "webhook.sqlite3"), check_same_thread=False)
+os.umask(0o077)
+database_path = os.getenv("WEBHOOK_STATE", "webhook.sqlite3")
+db = sqlite3.connect(database_path, check_same_thread=False)
+os.chmod(database_path, 0o600)
 db.execute("CREATE TABLE IF NOT EXISTS received(id TEXT PRIMARY KEY, body TEXT NOT NULL)")
 db.commit()
 
