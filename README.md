@@ -137,6 +137,11 @@ WEBHOOK_SECRET="$(docker compose exec -T api webhook-secret)"
 ```
 
 Events: `message.received`, `message.sent`, `send.confirmed`.
+Chat message events include `message_type`: `7` for text and `8` for media.
+Calls and service notifications are ignored, not emitted as incoming messages.
+Media remains metadata-only with `content_type: "unsupported"`, even if its
+payload contains a caption. Consumers should ignore unknown non-text events and
+rate-limit unsupported-media notices rather than replying to every event.
 Delivery is at least once. Deduplicate by the stable event `id`.
 Non-2xx responses, redirects and timeouts are failures. Delivery retries use
 exponential backoff; after 12 failed attempts the event becomes `dead`. Undelivered

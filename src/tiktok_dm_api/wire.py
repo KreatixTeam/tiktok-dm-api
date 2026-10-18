@@ -132,6 +132,9 @@ def messages(data: bytes) -> Iterator[dict]:
             continue
         if not DM_ID.fullmatch(conversation) or not isinstance(content, dict):
             continue
+        message_type = first(obj, 6)
+        if message_type not in (7, 8):
+            continue
         msg_id, sender, short_id = first(obj, 3), first(obj, 7), first(obj, 5)
         if not all(isinstance(value, int) and value > 0 for value in (msg_id, sender, short_id)):
             continue
@@ -145,7 +148,7 @@ def messages(data: bytes) -> Iterator[dict]:
             except (ValueError, UnicodeError, AttributeError):
                 continue
         text = content.get("text")
-        supported = isinstance(text, str) and len(text) <= 8000
+        supported = message_type == 7 and isinstance(text, str) and len(text) <= 8000
         client_id = extensions.get("s:client_message_id")
         yield {
             "id": str(msg_id),
@@ -154,6 +157,7 @@ def messages(data: bytes) -> Iterator[dict]:
             "sender_id": str(sender),
             "text": text if supported else None,
             "content_type": "text" if supported else "unsupported",
+            "message_type": message_type,
             "client_id": client_id if client_id and len(client_id) <= 128 else None,
             "timestamp": first(obj, 10, 0),
         }
