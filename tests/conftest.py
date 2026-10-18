@@ -11,12 +11,15 @@ CONVERSATION = "0:1:100:200"
 TOKEN = "unit-test-api-token-not-a-real-credential-0000"
 
 
-def message_wire(sender=200, msg_id=123, client_id="example-client-id", text="hello"):
+def message_wire(
+    sender=200, msg_id=123, client_id="example-client-id", text="hello", message_type=7
+):
     return (
         string(1, CONVERSATION)
         + number(2, 1)
         + number(3, msg_id)
         + number(5, 999)
+        + number(6, message_type)
         + number(7, sender)
         + string(8, json.dumps({"text": text, "aweType": 0}))
         + kv(9, "s:client_message_id", client_id)

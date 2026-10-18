@@ -23,6 +23,14 @@ def test_unknown_conversation_cannot_be_messaged(runtime):
         runtime.store.enqueue(CONVERSATION, "hi", "a")
 
 
+def test_call_events_do_not_authorize_replies_or_emit_events(runtime):
+    assert not runtime.ingest(message_wire(message_type=1805, text=None))
+    assert not runtime.store.many("SELECT * FROM events")
+    assert not runtime.store.many("SELECT * FROM conversations")
+    with pytest.raises(ValueError):
+        runtime.store.enqueue(CONVERSATION, "hi", "call")
+
+
 def test_own_message_does_not_authorize_stranger_contact(runtime):
     runtime.ingest(message_wire(sender=100))
     with pytest.raises(ValueError):

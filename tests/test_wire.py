@@ -65,7 +65,21 @@ def test_extracts_only_messages():
     assert result[0]["conversation_id"] == CONVERSATION
     assert result[0]["sender_id"] == "200"
     assert result[0]["client_id"] == "example-client-id"
+    assert result[0]["message_type"] == 7
     assert not list(messages(number(1, 100) + number(2, 203)))
+
+
+@pytest.mark.parametrize("message_type", [1, 1800, 1805, 9999])
+@pytest.mark.parametrize("text", [None, "Call ended"])
+def test_call_and_service_events_are_not_messages(message_type, text):
+    assert not list(messages(message_wire(message_type=message_type, text=text)))
+
+
+def test_media_stays_unsupported_even_if_it_has_a_text_field():
+    message = list(messages(message_wire(message_type=8, text="video caption")))[0]
+    assert message["message_type"] == 8
+    assert message["content_type"] == "unsupported"
+    assert message["text"] is None
 
 
 def test_oversize_text_metadata_only():
